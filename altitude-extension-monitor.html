@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Altitude uCI — Agent Extension Monitor</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600&family=Roboto+Mono:wght@400;500&display=swap');
+
+  :root {
+    --nav-bg:      #1a2035;
+    --nav-border:  #2d3550;
+    --nav-text:    #c8cfe0;
+    --nav-active:  #f5a623;
+    --bg:          #f4f5f7;
+    --bg2:         #ffffff;
+    --bg3:         #f0f1f4;
+    --border:      #dde1e8;
+    --border2:     #c4c9d4;
+    --text:        #1e2333;
+    --text2:       #5c6478;
+    --text3:       #9aa0b0;
+    --accent:      #f5a623;
+    --accent2:     #e8940d;
+    --teal:        #0F6E56;
+    --teal-bg:     #e6f4f0;
+    --teal-text:   #0a4f3e;
+    --amber:       #9a6c00;
+    --amber-bg:    #fef9ec;
+    --amber-text:  #7a5200;
+    --red:         #c0392b;
+    --red-bg:      #fdf0ef;
+    --red-text:    #a0291b;
+    --blue:        #1a5fb0;
+    --blue-bg:     #eef4fd;
+    --blue-text:   #1a4e8a;
+    --purple:      #5b3fa0;
+    --purple-bg:   #f2eefc;
+    --purple-text: #3d2880;
+    --green:       #27ae60;
+    --sans:  'Open Sans', sans-serif;
+    --mono:  'Roboto Mono', monospace;
+    --radius: 4px;
+    --radius-lg: 6px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* ── Top nav ── */
+  .nav {
+    background: var(--nav-bg);
+    border-bottom: 3px solid var(--accent);
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 50px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #ffffff;
+    letter-spacing: .01em;
+  }
+  .nav-sep { color: #3d4a6a; margin: 0 4px; }
+  .nav-title { color: var(--nav-text); font-weight: 400; }
+  .nav-right { display: flex; align-items: center; gap: 8px; }
+
+  #clockDisplay {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--nav-text);
+    background: rgba(255,255,255,.08);
+    padding: 3px 10px;
+    border-radius: var(--radius);
+    letter-spacing: .05em;
+    border: 1px solid rgba(255,255,255,.1);
+  }
+  .badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 3px;
+    letter-spacing: .02em;
+  }
+  .badge-warn { background: #f5a623; color: #fff; font-weight: 700; }
+  .badge-ok   { background: #d4edda; color: #155724; }
+  .badge-err  { background: #f8d7da; color: #721c24; }
+  .badge-info { background: #d1ecf1; color: #0c5460; }
+  .badge-idle { background: rgba(255,255,255,.1); color: var(--nav-text); }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 12px;
+    border-radius: var(--radius);
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid rgba(255,255,255,.2);
+    background: rgba(255,255,255,.08);
+    color: var(--nav-text);
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: rgba(255,255,255,.15); color: #fff; border-color: rgba(255,255,255,.3); }
+  .btn.primary { background: var(--accent); border-color: var(--accent2); color: #fff; }
+  .btn.primary:hover { background: var(--accent2); }
+  .btn.btn-sm { padding: 4px 10px; font-size: 11px; }
+  .btn:disabled { opacity: .4; cursor: default; }
+
+  /* ── Layout ── */
+  .page { max-width: 1400px; margin: 0 auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+
+  /* ── Section header (mimics Management Portal section titles) ── */
+  .section-header {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-bottom: 2px solid var(--accent);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title-icon {
+    width: 18px; height: 18px;
+    background: var(--accent);
+    border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+
+
+  /* ── Status bar ── */
+  .status-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 14px;
+    border-radius: var(--radius);
+    font-size: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg2);
+  }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .st-idle   .status-dot { background: var(--text3); }
+  .st-idle   { color: var(--text2); }
+  .st-loading .status-dot { background: var(--blue); animation: blink 1s infinite; }
+  .st-loading { color: var(--blue-text); border-color: #b8d4f0; background: var(--blue-bg); }
+  .st-ok    .status-dot { background: var(--green); }
+  .st-ok    { color: #155724; border-color: #c3e6cb; background: #d4edda; }
+  .st-err   .status-dot { background: var(--red); }
+  .st-err   { color: var(--red-text); border-color: #f5c6cb; background: var(--red-bg); }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* ── KPI strip ── */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
+  .kpi-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--border2);
+    border-radius: var(--radius-lg);
+    padding: 10px 14px;
+    display: flex; flex-direction: column; gap: 2px;
+    transition: border-top-color .2s;
+  }
+  .kpi-card.warn-card { border-top-color: var(--accent); }
+  .kpi-card.warn-card .kpi-label { color: #856404; }
+  .kpi-card.ok-card   { border-top-color: var(--green); }
+  .kpi-card.blue-card { border-top-color: var(--blue); }
+  .kpi-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--text2); }
+  .kpi-value { font-size: 28px; font-weight: 600; color: var(--text); line-height: 1; margin-top: 3px; }
+  .kpi-value.v-warn  { color: #856404; }
+  .kpi-value.v-ok    { color: #155724; }
+  .kpi-value.v-blue  { color: var(--blue); }
+  .kpi-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+  /* ── Alert banner ── */
+  .alert-banner {
+    display: none;
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-left: 4px solid #f5a623;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 7px 14px;
+    align-items: center;
+    gap: 10px;
+  }
+  .alert-banner.visible { display: flex; }
+  .alert-icon {
+    flex-shrink: 0; width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #f5a623;
+  }
+  .alert-title { font-weight: 700; color: #856404; font-size: 12px; display: inline; }
+  .alert-sub   { color: #856404; font-size: 12px; display: inline; margin-left: 4px; }
+
+  /* ── Main table card ── */
+  .table-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .table-header {
+    padding: 9px 14px;
+    border-bottom: 2px solid var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    background: var(--bg3);
+  }
+  .table-header-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .section-label {
+    font-size: 12px; font-weight: 600;
+    color: var(--text2); text-transform: uppercase; letter-spacing: .05em;
+  }
+  .filter-chip {
+    font-size: 11px; font-weight: 600;
+    padding: 3px 10px; border-radius: 3px;
+    border: 1px solid var(--border2);
+    background: var(--bg2); color: var(--text2);
+    cursor: pointer;
+    transition: all .12s;
+  }
+  .filter-chip:hover { border-color: var(--accent); color: var(--text); }
+  .filter-chip.fc-all.active  { border-color: var(--accent2); background: var(--accent); color: #fff; }
+  .filter-chip.fc-warn.active { border-color: var(--accent2); background: var(--accent); color: #fff; }
+  .filter-chip.fc-ok.active   { border-color: var(--accent2); background: var(--accent); color: #fff; }
+
+  .search-box {
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 12px;
+    padding: 5px 10px;
+    outline: none;
+    width: 180px;
+    transition: border-color .15s;
+  }
+  .search-box:focus { border-color: var(--accent); }
+  .search-box::placeholder { color: var(--text3); }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .04em;
+    color: var(--text2);
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+    background: var(--bg3);
+  }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #f7f8fa; }
+  tbody tr.row-warn { background: #fffdf0; }
+  tbody tr.row-warn:hover { background: #fff8d6; }
+  tbody td {
+    padding: 9px 12px;
+    color: var(--text);
+    font-size: 12px;
+    vertical-align: middle;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+  }
+
+  .agent-cell { display: flex; align-items: center; gap: 9px; }
+  .avatar {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .agent-name  { font-weight: 600; color: var(--text); }
+  .agent-uname { font-size: 10px; color: var(--text3); margin-top: 1px; }
+
+  .pill {
+    display: inline-block;
+    font-size: 10px; font-weight: 700;
+    padding: 2px 7px; border-radius: 3px;
+    white-space: nowrap; text-transform: uppercase; letter-spacing: .03em;
+  }
+  .pl-ok     { background: #d4edda; color: #155724; }
+  .pl-warn   { background: #fff3cd; color: #856404; }
+  .pl-err    { background: #f8d7da; color: #721c24; }
+  .pl-blue   { background: #d1ecf1; color: #0c5460; }
+  .pl-purple { background: #e2d9f3; color: #432874; }
+  .pl-idle   { background: var(--bg3); color: var(--text3); border: 1px solid var(--border); }
+
+  .ext-none { font-weight: 700; color: #721c24; font-size: 12px; }
+  .ext-set  { font-weight: 700; color: #155724; font-size: 12px; font-family: var(--mono); }
+  .muted    { color: var(--text2); font-size: 12px; }
+
+  .camp-cell    { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .camp-pill    { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 3px; white-space: nowrap; }
+  .camp-ready   { background: #d4edda; color: #155724; }
+  .camp-notready{ background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+  .camp-dot-red   { background: #c0392b; }
+  .camp-dot     { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+  .camp-dot-green { background: #27ae60; }
+
+  /* ── Status indicator dots (like Altitude green play / red square) ── */
+  .state-dot {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px;
+  }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .dot-green  { background: var(--green); }
+  .dot-red    { background: var(--red); }
+  .dot-amber  { background: var(--accent); }
+  .dot-blue   { background: var(--blue); }
+  .dot-gray   { background: var(--text3); }
+
+  /* ── Empty state ── */
+  .empty-state {
+    text-align: center; padding: 40px 20px;
+    color: var(--text2); font-size: 13px; line-height: 1.8;
+  }
+  .empty-icon { font-size: 26px; margin-bottom: 8px; opacity: .3; }
+
+  /* ── Spinner ── */
+  .spinner {
+    width: 10px; height: 10px;
+    border: 1.5px solid var(--border2);
+    border-top-color: var(--blue);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    .kpi-row { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  }
+  @media (max-width: 600px) {
+    .kpi-row { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .nav { padding: 0 12px; }
+    .page { padding: 10px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav class="nav">
+  <div class="nav-brand">
+    <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 29.2" height="22" style="display:block;">
+  <g fill="#ffffff">
+    <path d="M28.2,22.9c-4.6,3.8-11.1,4.1-15.9,1c4.3,1.4,9.3,0.7,13-2.4C31,16.7,31.8,8.3,27,2.6c-0.9-1.1-2-2-3.1-2.7c2.3,0.8,4.3,2.1,6,4.1C34.7,9.7,33.9,18.1,28.2,22.9"/>
+    <path d="M12.7,1.7c5.8-2.3,12.4,0.5,14.8,6.2c0.8,1.9,1,3.9,0.7,5.8c-0.1-0.5-0.3-1-0.5-1.5c-2.1-5.1-7.9-7.5-13-5.5c-5.1,2-7.6,7.8-5.5,12.9c0.2,0.5,0.5,1,0.7,1.4c-1.5-1.2-2.8-2.8-3.5-4.7C4.1,10.6,6.9,4,12.7,1.7"/>
+    <path d="M0.1,14.2c0-6.7,4.4-12.3,10.5-14.2C6.3,2.5,3.4,7.3,3.4,12.7c0,8.3,6.7,14.9,15.1,14.9c1.6,0,3.1-0.2,4.6-0.7c-2.3,1.4-5,2.2-7.8,2.2C6.8,29.1,0.1,22.4,0.1,14.2"/>
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M53.6,1.7l3.3-0.8v15.7c0,1.7,0.5,2.8,1.6,3.1c-0.5,1-1.4,1.5-2.6,1.5c-1.5,0-2.2-1-2.2-3.1V1.7z"/>
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M61,9.5h-1.6V6.9H61V4.1l3.3-1.2v4h3.9v2.6h-3.9v6.1c0,1,0.2,1.7,0.5,2.1c0.3,0.4,0.9,0.6,1.7,0.6c0.8,0,1.5-0.2,2.2-0.6v3c-0.8,0.3-1.9,0.4-3.3,0.4c-1.4,0-2.5-0.4-3.2-1.2c-0.8-0.8-1.1-1.9-1.1-3.4V9.5z"/>
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M78.6,9.5H77V6.9h1.6V4.1l3.3-1.2v4h3.9v2.6h-3.9v6.1c0,1,0.2,1.7,0.5,2.1c0.3,0.4,0.9,0.6,1.7,0.6c0.8,0,1.5-0.2,2.2-0.6v3c-0.8,0.3-1.9,0.4-3.3,0.4c-1.4,0-2.5-0.4-3.2-1.2c-0.8-0.8-1.1-1.9-1.1-3.4V9.5z"/>
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M96.8,20.9v-1.2c-0.5,0.4-1.1,0.7-1.9,1c-0.8,0.3-1.6,0.4-2.3,0.4c-3.3,0-4.9-1.7-4.9-5.2V6.9H91v8.8c0,1.8,0.8,2.7,2.4,2.7c0.7,0,1.4-0.2,2.1-0.6c0.6-0.4,1.1-0.8,1.3-1.3V6.9h3.3v14H96.8z"/>
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M47,14.3c-0.6-0.1-1-0.2-1.3-0.2c-2.6,0-3.9,0.9-3.9,2.6c0,1.3,0.7,1.9,2.2,1.9c2,0,3-1,3-3V14.3z M47.3,19.5c-0.3,0.5-0.8,0.9-1.6,1.2c-0.7,0.3-1.5,0.5-2.3,0.5c-1.5,0-2.7-0.4-3.6-1.1c-0.9-0.8-1.3-1.8-1.3-3.2c0-1.6,0.6-2.9,1.8-3.8c1.2-0.9,3-1.4,5.2-1.4c0.4,0,0.8,0.1,1.4,0.2c0-1.6-1-2.5-3.1-2.5c-1.2,0-2.3,0.2-3.1,0.6L40,7.4c1.1-0.5,2.5-0.8,4-0.8c2.2,0,3.7,0.5,4.7,1.5c1,1,1.5,2.8,1.5,5.5v3c0,1.9,0.4,3,1.1,3.5c-0.3,0.5-0.6,0.8-0.9,0.9c-0.3,0.1-0.7,0.2-1.1,0.2c-0.5,0-0.9-0.2-1.3-0.5C47.7,20.3,47.4,19.9,47.3,19.5"/>
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M71.5,20.9V9.6h-1.8V6.9h5.2v14H71.5z M73.2,1.5c0.5,0,1,0.2,1.4,0.6c0.4,0.4,0.6,0.8,0.6,1.3c0,0.5-0.2,1-0.6,1.3c-0.4,0.4-0.8,0.6-1.4,0.6c-0.5,0-1-0.2-1.4-0.6c-0.4-0.4-0.6-0.8-0.6-1.3c0-0.5,0.2-1,0.6-1.3C72.3,1.6,72.7,1.5,73.2,1.5"/>
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M111.4,10.2c-0.7-0.6-1.4-0.8-2.2-0.8c-1.3,0-2.3,0.4-3,1.2c-0.7,0.8-1.1,1.9-1.1,3.4c0,2.9,1.4,4.4,4.2,4.4c0.3,0,0.7-0.1,1.2-0.3c0.5-0.2,0.8-0.4,0.9-0.6V10.2z M111.4,20.9V20c-0.3,0.3-0.7,0.6-1.4,0.8c-0.6,0.2-1.3,0.3-2,0.3c-2,0-3.5-0.6-4.6-1.9c-1.1-1.2-1.7-3-1.7-5.2c0-2.2,0.6-4,1.9-5.4c1.3-1.4,2.9-2.1,4.9-2.1c1.1,0,2,0.2,2.9,0.7V1.7l3.3-0.8v20H111.4z"/>
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M119.9,12.4h6.9c-0.2-2.1-1.4-3.1-3.4-3.1C121.5,9.4,120.3,10.4,119.9,12.4 M129.8,14.9h-10.1c0.1,1.1,0.4,2,1.2,2.6c0.7,0.6,1.7,0.9,2.9,0.9c1.5,0,2.6-0.4,3.4-1.1l1.3,2.5c-1.2,0.9-2.9,1.4-5.2,1.4c-2.1,0-3.8-0.6-5.1-1.9c-1.3-1.2-1.9-3-1.9-5.2c0-2.2,0.7-4,2.1-5.4c1.4-1.4,3-2.1,4.9-2.1c2,0,3.7,0.6,4.9,1.8c1.2,1.2,1.9,2.8,1.9,4.6C130.1,13.5,130,14.1,129.8,14.9"/>
+  </g>
+</svg>
+    <span class="nav-sep" style="margin:0 8px;">|</span>
+    <span class="nav-title">Agent Extension Monitor</span>
+  </div>
+  <div class="nav-right">
+    <div id="clockDisplay">--:--:--</div>
+    <span class="badge badge-idle" id="navBadge">not connected</span>
+    <select id="roleSelect" onchange="onRoleChange()" style="font-family:var(--sans);font-size:11px;padding:3px 8px;border:1px solid rgba(255,255,255,.2);border-radius:3px;background:rgba(255,255,255,.08);color:#c8cfe0;outline:none;cursor:pointer;"><option value="0">— loading —</option></select>
+    <button class="btn btn-sm" onclick="fetchAll()">&#8635; Refresh</button>
+    <button class="btn btn-sm" id="arBtn" onclick="toggleAutoRefresh()">auto-refresh: off</button>
+  </div>
+</nav>
+
+<!-- ── PAGE ── -->
+<main class="page">
+
+
+  <!-- Status bar -->
+  <div class="status-bar st-idle" id="statusBar">
+    <div class="status-dot"></div>
+    <span id="statusMsg">Configure server above and click Fetch agents</span>
+    <span id="spinnerSlot"></span>
+  </div>
+
+  <!-- Alert banner -->
+  <div class="alert-banner" id="alertBanner">
+    <div class="alert-icon"></div>
+    <div><span class="alert-title" id="alertTitle"></span><span class="alert-sub" id="alertSub"></span></div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-row">
+    <div class="kpi-card blue-card">
+      <div class="kpi-label">Total logged in</div>
+      <div class="kpi-value v-blue" id="kpiTotal">—</div>
+      <div class="kpi-sub">active sessions</div>
+    </div>
+    <div class="kpi-card" id="kpiNoExtCard">
+      <div class="kpi-label">No extension</div>
+      <div class="kpi-value v-warn" id="kpiNoExt">—</div>
+      <div class="kpi-sub" style="color:var(--amber-text);">cannot receive calls</div>
+    </div>
+    <div class="kpi-card ok-card">
+      <div class="kpi-label">With extension</div>
+      <div class="kpi-value v-ok" id="kpiWith">—</div>
+      <div class="kpi-sub">fully assigned</div>
+    </div>
+    <div class="kpi-card ok-card">
+      <div class="kpi-label">Ready</div>
+      <div class="kpi-value v-ok" id="kpiReady">—</div>
+      <div class="kpi-sub">available for calls</div>
+    </div>
+  </div>
+
+  <!-- Agent table -->
+  <div class="table-card">
+    <div class="table-header">
+      <div class="table-header-left">
+        <span class="section-label">Agent sessions</span>
+        <button class="filter-chip fc-all active" id="fcAll" onclick="setFilter('all',this)">All</button>
+        <button class="filter-chip fc-warn" id="fcNo"  onclick="setFilter('noext',this)">No extension</button>
+        <button class="filter-chip fc-ok"   id="fcOk"  onclick="setFilter('ok',this)">With extension</button>
+      </div>
+      <input class="search-box" id="srch" placeholder="/ search name..." oninput="renderTable()">
+    </div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:18%;min-width:150px;">Agent</th>
+            <th style="width:9%;">Extension</th>
+            <th style="width:7%;">Ready</th>
+            <th style="width:9%;">State</th>
+            <th style="width:9%;">Site</th>
+            <th style="width:10%;">Switch</th>
+            <th style="width:38%;">Campaigns</th>
+          </tr>
+        </thead>
+        <tbody id="agentBody">
+          <tr><td colspan="7"><div class="empty-state"><div class="empty-icon">⬡</div>No data yet — configure server and click Fetch agents</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script>
+// ── State ──
+let agents = [];
+let filter = 'all';
+let token  = null;
+let arTimer = null;
+let arOn = false;
+let cfg = null; // loaded from config.json
+
+// ── Clock ──
+function tick(){
+  document.getElementById('clockDisplay').textContent =
+    new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+}
+tick(); setInterval(tick, 1000);
+
+// ── Load config.json on startup ──
+async function loadConfig(){
+  const tag = document.getElementById('cfgLoadStatus');
+  try {
+    const res = await fetch('config.json?_=' + Date.now());
+    if(res.status === 404) throw new Error('config.json not found — place it in the same folder as this HTML file');
+    if(!res.ok) throw new Error('HTTP ' + res.status + ' fetching config.json');
+    try {
+      cfg = await res.json();
+    } catch(parseErr) {
+      throw new Error('config.json is not valid JSON — ' + parseErr.message);
+    }
+
+    // Support both accounts array and legacy single username/password
+    if(!cfg.accounts || !cfg.accounts.length) {
+      if(!cfg.username || !cfg.password) throw new Error('Missing username/password in config.json');
+      cfg.accounts = [{ role: cfg.username, username: cfg.username, password: cfg.password }];
+    }
+
+    const missing = ['serverUrl','instanceAddress'].filter(k => !cfg[k]);
+    if(missing.length) throw new Error('Missing fields: ' + missing.join(', '));
+
+    // Populate role selector
+    const sel = document.getElementById('roleSelect');
+    if(sel){
+      sel.innerHTML = cfg.accounts.map((a,i) =>
+        `<option value="${i}">${a.role || a.username}</option>`
+      ).join('');
+    }
+
+    // cfgDisplayUrl removed
+    // cfgDisplayInst removed
+    updateUserDisplay();
+
+    if(tag){ tag.textContent = 'config loaded'; tag.className = 'cfg-tag ok'; }
+
+    await fetchAll();
+
+    if(cfg.autoRefreshSeconds > 0){
+      const secs = cfg.autoRefreshSeconds;
+      arOn = true;
+      document.getElementById('arBtn').textContent = `auto-refresh: ${secs}s`;
+      arTimer = setInterval(() => fetchAgents(), secs * 1000);
+    }
+  } catch(e) {
+    if(tag){ tag.textContent = 'config error'; tag.className = 'cfg-tag err'; }
+    // config strip removed
+    setStatus('err', 'Could not load config.json — ' + e.message);
+    agents = []; updateKPIs(); renderTable();
+  }
+}
+
+function getActiveAccount(){
+  if(!cfg || !cfg.accounts) return null;
+  const sel = document.getElementById('roleSelect');
+  const idx = sel ? parseInt(sel.value) || 0 : 0;
+  return cfg.accounts[idx] || cfg.accounts[0];
+}
+
+function updateUserDisplay(){
+  // username display removed from strip - role shown in select dropdown
+}
+
+function onRoleChange(){
+  updateUserDisplay();
+  clearInterval(arTimer);
+  token = null;
+  fetchAll().then(() => {
+    if(arOn && cfg.autoRefreshSeconds > 0)
+      arTimer = setInterval(() => fetchAgents(), cfg.autoRefreshSeconds * 1000);
+  });
+}
+
+
+// ── Status ──
+function setStatus(type, msg){
+  const bar = document.getElementById('statusBar');
+  bar.className = 'status-bar st-' + type;
+  document.getElementById('statusMsg').textContent = msg;
+  const slot = document.getElementById('spinnerSlot');
+  slot.innerHTML = type === 'loading' ? '<div class="spinner"></div>' : '';
+}
+
+function setNavBadge(type, text){
+  const b = document.getElementById('navBadge');
+  b.className = 'badge badge-' + type;
+  b.textContent = text;
+}
+
+// ── Filter ──
+function setFilter(f, el){
+  filter = f;
+  document.querySelectorAll('.filter-chip').forEach(c =>{
+    c.classList.remove('active');
+  });
+  el.classList.add('active');
+  renderTable();
+}
+
+// ── Avatar colors ──
+const AV = [
+  {bg:'#d4edda',fg:'#155724'},{bg:'#d1ecf1',fg:'#0c5460'},
+  {bg:'#fff3cd',fg:'#856404'},{bg:'#e2d9f3',fg:'#432874'},
+  {bg:'#f8d7da',fg:'#721c24'},{bg:'#d4edda',fg:'#155724'}
+];
+function av(i){ return AV[i % AV.length]; }
+function ini(n){ return ((n||'?').split(' ').map(p=>p[0]).join('').substring(0,2)).toUpperCase(); }
+
+// ── Render table ──
+function buildCampaignCell(agentName){
+  if(!agentName) return '<span class="muted">—</span>';
+  const camps = campaignMap[(agentName||'').toLowerCase()];
+  if(!camps || !camps.length) return '<span class="muted">—</span>';
+  return '<div class="camp-cell">' + camps.map(c => {
+    const cls   = c.IsReady ? 'camp-ready' : 'camp-notready';
+    const label = c.IsReady ? 'Ready' : 'Not ready';
+    const dot   = c.IsReady ? 'camp-dot-green' : 'camp-dot-red';
+    return `<span class="camp-pill ${cls}" title="${esc(c.CampaignName)}: ${label}"><span class="camp-dot ${dot}"></span>${esc(c.CampaignName)}</span>`;
+  }).join(' ') + '</div>';
+}
+
+function renderTable(){
+  const q = document.getElementById('srch').value.toLowerCase().trim();
+  const body = document.getElementById('agentBody');
+
+  const rows = agents.filter(a => {
+    if(filter === 'noext' && a.Extension) return false;
+    if(filter === 'ok'    && !a.Extension) return false;
+    const name = (a.FullName || a.Name || '').toLowerCase();
+    if(q && !name.includes(q)) return false;
+    return true;
+  });
+
+  // Update filter chip labels
+  const total  = agents.length;
+  const noExt  = agents.filter(a => !a.Extension).length;
+  const withExt= agents.filter(a =>  a.Extension).length;
+  document.getElementById('fcAll').textContent = `All (${total})`;
+  document.getElementById('fcNo' ).textContent = `No extension (${noExt})`;
+  document.getElementById('fcOk' ).textContent = `With extension (${withExt})`;
+
+  if(!rows.length){
+    body.innerHTML = `<tr><td colspan="7"><div class="empty-state">
+      <div class="empty-icon">⬡</div>
+      ${agents.length ? 'No agents match the current filter' : 'No data — configure server and click Fetch agents'}
+    </div></td></tr>`;
+    return;
+  }
+
+  body.innerHTML = rows.map((a, i) => {
+    const c    = av(i);
+    const name = a.FullName || a.Name || 'Agent ' + a.Id;
+    const noE  = !a.Extension;
+
+    const stateCell = a.InWrapUp || a.WithDataTransaction
+      ? '<span class="state-dot"><span class="dot dot-amber"></span>Wrap-up</span>'
+      : a.WithTelephony
+        ? '<span class="state-dot"><span class="dot dot-blue"></span>On call</span>'
+        : a.IsReady
+          ? '<span class="state-dot"><span class="dot dot-green"></span>Ready</span>'
+          : '<span class="state-dot"><span class="dot dot-gray"></span>Not ready</span>';
+
+    return `<tr class="${noE ? 'row-warn' : ''}">
+      <td>
+        <div class="agent-cell">
+          <div class="avatar" style="background:${c.bg};color:${c.fg};">${ini(name)}</div>
+          <div>
+            <div class="agent-name">${esc(name)}</div>
+            ${a.Name && a.FullName ? `<div class="agent-uname">${esc(a.Name)}</div>` : ''}
+          </div>
+        </div>
+      </td>
+      <td>${noE
+        ? '<span class="state-dot"><span class="dot dot-red"></span><span class="ext-none">Not set</span></span>'
+        : `<span class="state-dot"><span class="dot dot-green"></span><span class="ext-set">${esc(a.Extension)}</span></span>`
+      }</td>
+      <td>${a.IsReady
+        ? '<span class="state-dot"><span class="dot dot-green"></span>Yes</span>'
+        : '<span class="state-dot"><span class="dot dot-gray"></span>No</span>'
+      }</td>
+      <td>${stateCell}</td>
+      <td><span class="muted">${esc(a.SiteName||'—')}</span></td>
+      <td><span class="muted">${esc(a.SwitchName||a.LoginGroup||'—')}</span></td>
+      <td>${buildCampaignCell(a.Name)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── KPIs ──
+function updateKPIs(){
+  const total  = agents.length;
+  const noExt  = agents.filter(a => !a.Extension).length;
+  const withExt= agents.filter(a =>  a.Extension).length;
+  const ready  = agents.filter(a => a.IsReady).length;
+
+  document.getElementById('kpiTotal').textContent = total;
+  document.getElementById('kpiNoExt').textContent = noExt;
+  document.getElementById('kpiWith' ).textContent = withExt;
+  document.getElementById('kpiReady').textContent = ready;
+  document.getElementById('kpiNoExtCard').classList.toggle('warn-card', noExt > 0);
+
+  const banner = document.getElementById('alertBanner');
+  if(noExt > 0){
+    banner.classList.add('visible');
+    document.getElementById('alertTitle').textContent = `${noExt} agent${noExt>1?'s':''} without extension —`;
+    document.getElementById('alertSub').textContent = ' cannot receive inbound calls. Ask them to re-login with a device.';
+    setNavBadge('warn', `${noExt} without extension`);
+  } else {
+    banner.classList.remove('visible');
+    setNavBadge('ok', 'all assigned');
+  }
+}
+
+// ── Fetch ──
+async function fetchAll(){
+  if(!cfg){ setStatus('err', 'config.json not loaded yet.'); return; }
+  const acc  = getActiveAccount();
+  if(!acc){ setStatus('err', 'No account configured in config.json'); return; }
+  const url    = cfg.serverUrl.replace(/\/$/,'');
+  const inst   = cfg.instanceAddress;
+  const user   = acc.username;
+  const pass   = acc.password;
+  const secure = cfg.secureAccess || 'false';
+
+  const fetchBtn = document.getElementById('fetchBtn'); if(fetchBtn) fetchBtn.disabled = true;
+  setStatus('loading', 'Authenticating with Integration Server...');
+
+  try {
+    const baseParams = {
+      username: user, password: pass,
+      grant_type: 'password',
+      instanceaddress: inst,
+      authenticationType: 'Uci',
+      secureaccess: secure
+    };
+
+    // Step 1a — try attach first (reconnect existing session)
+    setStatus('loading', 'Trying attach to existing session...');
+    let td = await doTokenRequest(url, { ...baseParams, operation: 'attach' });
+
+    if(!td.access_token) {
+      const errDesc = (td.error_description || '').toLowerCase();
+
+      if(errDesc.includes('alreadylogged') || errDesc.includes('already')) {
+        // Session exists but attach rejected — try forced login to take over
+        setStatus('loading', 'Session active — trying forced login...');
+        td = await doTokenRequest(url, { ...baseParams, operation: 'login', forced: 'true' });
+      } else if(errDesc.includes('notlogged') || errDesc.includes('not logged') || errDesc.includes('invalid')) {
+        // No active session — do fresh login
+        setStatus('loading', 'No active session — logging in fresh...');
+        td = await doTokenRequest(url, { ...baseParams, operation: 'login' });
+      } else {
+        throw new Error(td.error_description || `Auth failed`);
+      }
+    }
+
+    if(!td.access_token) throw new Error(td.error_description || 'Authentication failed after all attempts');
+    token = td.access_token;
+    if(td.expires_in) setTimeout(refreshToken, (td.expires_in - 60) * 1000);
+
+    // Step 2 — findAgents
+    await fetchAgents(url);
+
+  } catch(e) {
+    console.error('Altitude API error:', e);
+    setStatus('err', 'Error: ' + e.message);
+    setNavBadge('err', 'error');
+    agents = []; updateKPIs(); renderTable();
+  } finally {
+    const fb = document.getElementById('fetchBtn'); if(fb) fb.disabled = false;
+  }
+}
+
+async function fetchCampaignMap(url){
+  campaignMap = {};
+  try {
+    if(!agents || !agents.length) return;
+
+    const accountNames = new Set((cfg.accounts||[]).map(a=>a.username.toLowerCase()));
+    const extraExclude  = new Set((cfg.excludeUsernames||[]).map(n=>n.toLowerCase()));
+
+    // If monitorCampaigns is configured, use that list directly
+    // Otherwise fetch per-agent campaign assignments using supervisor token
+    if(cfg.monitorCampaigns && cfg.monitorCampaigns.length){
+      await fetchCampaignStates(url, cfg.monitorCampaigns, accountNames, extraExclude);
+    } else {
+      // For each agent, get their assigned campaigns using supervisor token
+      const allCampaigns = new Set();
+      await Promise.all(agents.map(async a => {
+        if(!a.Name) return;
+        try {
+          const res = await fetch(
+            `${url}/api/instance/agentManager/assignedCampaigns?agentName=${encodeURIComponent(a.Name)}&assignmentMode=All`,
+            { headers:{ 'Authorization':'Bearer '+token } }
+          );
+          if(!res.ok) return;
+          const camps = await res.json();
+          camps.forEach(c => { if(c.Name) allCampaigns.add(c.Name); });
+        } catch(e){}
+      }));
+      if(allCampaigns.size > 0){
+        await fetchCampaignStates(url, [...allCampaigns], accountNames, extraExclude);
+      }
+    }
+  } catch(e){ campaignMap = {}; }
+}
+
+async function fetchCampaignStates(url, campaigns, accountNames, extraExclude){
+  await Promise.all(campaigns.map(async campaignName => {
+    try {
+      const res = await fetch(
+        `${url}/api/instance/campaignManager/assignedAgentsInfo?campaignName=${encodeURIComponent(campaignName)}`,
+        { headers:{ 'Authorization':'Bearer '+token } }
+      );
+      if(!res.ok) return;
+      const infos = await res.json();
+      for(const info of infos){
+        const uname = (info.AgentName||'').toLowerCase();
+        if(!uname || accountNames.has(uname) || extraExclude.has(uname)) continue;
+        if(!info.IsOpened) continue;
+        if(!campaignMap[uname]) campaignMap[uname] = [];
+        campaignMap[uname].push(info);
+      }
+    } catch(e){}
+  }));
+}
+
+async function doTokenRequest(url, params) {
+  const res = await fetch(`${url}/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(params)
+  });
+  return await res.json();
+}
+
+async function fetchAgents(urlOverride){
+  const url = urlOverride || (cfg && cfg.serverUrl.replace(/\/$/,'')) || '';
+  setStatus('loading', 'Fetching agent list via PUT /api/instance/findAgents...');
+  try {
+    const res = await fetch(`${url}/api/instance/findAgents`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({ onlyLoggedAgents: true, onlyAgentsWithExtension: false })
+    });
+    if(!res.ok) throw new Error(`findAgents returned HTTP ${res.status}`);
+    const allAgents = await res.json();
+
+    // Exclude account usernames (supervisors/admins) and any extras from excludeUsernames
+    const accountNames = (cfg.accounts || []).map(a => a.username.toLowerCase());
+    const extraExclude = (cfg.excludeUsernames || []).map(n => n.toLowerCase());
+    const excludeSet   = new Set([...accountNames, ...extraExclude]);
+    agents = allAgents.filter(a => {
+      if(!a.FullName && !a.Name) return false;
+      const uname = (a.Name || '').toLowerCase();
+      if(uname && excludeSet.has(uname)) return false;
+      return true;
+    });
+
+    // Fetch campaign state for each agent using supervisor token
+    setStatus('loading', `Fetched ${agents.length} agents — loading campaign data...`);
+    await fetchCampaignMap(url);
+
+    const now = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    const noExt = agents.filter(a => !a.Extension).length;
+    updateKPIs();
+    renderTable();
+    setStatus('ok', `Fetched ${agents.length} logged agents — ${noExt} without extension — last updated ${now}`);
+  } catch(e) {
+    setStatus('err', 'findAgents error: ' + e.message);
+    setNavBadge('err', 'error');
+  }
+}
+
+async function refreshToken(){
+  if(!cfg) return;
+  const acc    = getActiveAccount();
+  if(!acc) return;
+  const url    = cfg.serverUrl.replace(/\/$/,'');
+  const secure = cfg.secureAccess || 'false';
+  const base = { username:acc.username, password:acc.password, grant_type:'password', instanceaddress:cfg.instanceAddress, authenticationType:'Uci', secureaccess:secure };
+  try {
+    let td = await doTokenRequest(url, { ...base, operation:'attach' });
+    if(!td.access_token) td = await doTokenRequest(url, { ...base, operation:'login', forced:'true' });
+    if(!td.access_token) td = await doTokenRequest(url, { ...base, operation:'login' });
+    if(td.access_token){
+      token = td.access_token;
+      if(td.expires_in) setTimeout(refreshToken, (td.expires_in - 60) * 1000);
+    }
+  } catch(e){ console.warn('Token refresh failed', e); }
+}
+
+// ── Auto-refresh ──
+function toggleAutoRefresh(){
+  arOn = !arOn;
+  const secs = (cfg && cfg.autoRefreshSeconds) || 30;
+  document.getElementById('arBtn').textContent = `auto-refresh: ${arOn ? secs+'s' : 'off'}`;
+  if(arOn){ fetchAll(); arTimer = setInterval(() => fetchAgents(), secs * 1000); }
+  else { clearInterval(arTimer); }
+}
+
+
+
+// Start
+document.addEventListener('DOMContentLoaded', loadConfig);
+</script>
+</body>
+</html>

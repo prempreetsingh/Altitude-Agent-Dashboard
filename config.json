@@ -1,0 +1,13 @@
+{
+  "serverUrl": "http://ccserver/uAgentWeb80",
+  "instanceAddress": "ccserver:1500",
+  "secureAccess": "false",
+  "autoRefreshSeconds": 30,
+  "accounts": [
+    { "role": "Supervisor",  "username": "supervisor",  "password": "your_password_here" },
+    { "role": "Team Leader", "username": "teamleader",  "password": "your_password_here" },
+    { "role": "Admin",       "username": "admin",       "password": "your_password_here" }
+  ],
+  "excludeUsernames": [],
+  "monitorCampaigns": []
+}
